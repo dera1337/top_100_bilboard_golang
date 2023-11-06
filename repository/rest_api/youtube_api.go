@@ -12,10 +12,14 @@ import (
 )
 
 var (
-	ApiKey1 = os.Getenv("APIKEY_1") //
-	ApiKey2 = os.Getenv("APIKEY_2") //
-	// key=API_KEY
+	ApiKey1 string
+	ApiKey2 string
 )
+
+func PopulateApiKey() {
+	ApiKey1 = os.Getenv("APIKEY_1")
+	ApiKey2 = os.Getenv("APIKEY_2")
+}
 
 type VideoDetail struct {
 	Items []item `json:"items"`

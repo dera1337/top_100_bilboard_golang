@@ -20,12 +20,12 @@ var conn dbConn
 func ConnectionSupabase() {
 	cCtx, cCancel := context.WithCancel(context.Background())
 
-	cPool, err := pgxpool.New(cCtx, os.Getenv("CONN_STRING_POSTGRES")) //
+	cPool, err := pgxpool.New(cCtx, os.Getenv("CONN_STRING_POSTGRES"))
 	if err != nil {
 		log.Fatal("cannot connect to database")
 	}
 
-	sqlText, err := os.ReadFile(environment.GetInitSQLPath()) //
+	sqlText, err := os.ReadFile(environment.GetInitSQLPath())
 	if err != nil {
 		log.Fatal("not yet")
 	}
@@ -50,5 +50,5 @@ func CloseConnection() {
 }
 
 func initWrappers() {
-	SongInfoWrapper = songInfoWrapper{dbConn: conn}
+	SongInfoWrapper = songInfoWrapper{dbConn: &conn}
 }

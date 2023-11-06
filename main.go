@@ -2,9 +2,13 @@ package main
 
 import (
 	"log"
+	"time"
+	"top_100_billboard_golang/api"
 	"top_100_billboard_golang/repository/database"
+	restapi "top_100_billboard_golang/repository/rest_api"
 	"top_100_billboard_golang/repository/webscraper"
 
+	"github.com/go-co-op/gocron"
 	"github.com/joho/godotenv"
 )
 
@@ -14,20 +18,19 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	// created new goroutine everytime cron executes
-	// s := gocron.NewScheduler(time.UTC)
-	// _, err := s.Cron("0 */1 * * *").Do(a)
-
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return
-	// }
-	// s.StartAsync()
-	// ch <- struct{}{}
-	// return
+	restapi.PopulateApiKey()
 
 	database.ConnectionSupabase()
 	defer database.CloseConnection()
-	webscraper.ScrapeBillboard()
 
+	// created new goroutine everytime cron executes
+
+	s := gocron.NewScheduler(time.UTC)
+	_, err = s.Cron("0 */1 * * *").Do(webscraper.ScrapeBillboard)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.StartAsync()
+
+	api.Run()
 }

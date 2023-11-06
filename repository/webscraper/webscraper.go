@@ -17,10 +17,11 @@ var (
 )
 
 func ScrapeBillboard() {
-
-	res, err := http.Get(os.Getenv("URLBILLBOARD")) //
+	log.Println("scraping begin")
+	res, err := http.Get(os.Getenv("URLBILLBOARD"))
 	if err != nil {
-		if errCount <= 5 {
+
+		if atomic.LoadInt32(&errCount) <= 5 {
 			atomic.AddInt32(&errCount, 1)
 		} else {
 			log.Println(err)
@@ -41,7 +42,7 @@ func ScrapeBillboard() {
 	}
 
 	songInfoList := []database.SongInformation{}
-	doc.Find(os.Getenv("SELECTOR_1")).Each(func(i int, s *goquery.Selection) { //
+	doc.Find(os.Getenv("SELECTOR_1")).Each(func(i int, s *goquery.Selection) {
 		imageUrl, _ := s.Attr("style")
 		index := strings.Index(imageUrl, "https")
 		lastIndex := strings.LastIndex(imageUrl, "'")
@@ -53,7 +54,7 @@ func ScrapeBillboard() {
 	})
 
 	i := 0
-	doc.Find(os.Getenv("SELECTOR_2")).Each(func(i int, s *goquery.Selection) { //
+	doc.Find(os.Getenv("SELECTOR_2")).Each(func(i int, s *goquery.Selection) {
 		title := strings.TrimSpace(s.Find("h3").Text())
 		author := strings.TrimSpace(s.Find("span.c-label").Text())
 
@@ -76,15 +77,22 @@ func ScrapeBillboard() {
 	}
 
 	if len(CachedSongTitles) == 0 {
-		err := database.SongInfoWrapper.InsertRows(songInfoList)
+		err = database.SongInfoWrapper.InsertRows(songInfoList)
 		if err != nil {
 			log.Fatal(err)
 		}
 		cacheSongs(songInfoList)
 	} else {
-
-		// kalo != 0 -> cek sama cache apakah ada perbedaan?
-		// Yes = insert + populate cache, No = skip
+		for i := 0; i < len(CachedSongTitles); i++ {
+			if songInfoList[i].Title != CachedSongTitles[i] {
+				err = database.SongInfoWrapper.InsertRows(songInfoList)
+				if err != nil {
+					log.Fatal(err)
+				}
+				cacheSongs(songInfoList)
+				return
+			}
+		}
 	}
 
 	doNothing(i)
