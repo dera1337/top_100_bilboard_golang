@@ -11,8 +11,21 @@ import (
 )
 
 func Run() {
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
-
+	// bikin tabel user (user_id, username, fcm_token 'string') //buat notifikasi
+	// bikin endpoint sign up (
+	// 	req: username(body),
+	// 	resp: (access_token, refresh_token)(body)
+	// )
+	// bikin endpoint refresh access_token (
+	// 	req: refresh_token (Authorization header),
+	// 	resp: access_token(body)
+	// )
+	r.Use(AccessTokenMiddleware)
+	r.GET("/", func(c *gin.Context) {
+		writeResponse(c, nil, "ok", http.StatusOK)
+	})
 	songsEndpoint := r.Group("/songs")
 	songsEndpoint.GET("", func(c *gin.Context) {
 		page, err := strconv.Atoi(c.DefaultQuery("page", "1"))

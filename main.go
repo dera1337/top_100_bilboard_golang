@@ -19,7 +19,6 @@ func main() {
 	}
 
 	restapi.PopulateApiKey()
-
 	database.ConnectionSupabase()
 	defer database.CloseConnection()
 

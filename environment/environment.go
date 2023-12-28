@@ -12,3 +12,7 @@ func GetInitSQLPath() string {
 		return ""
 	}
 }
+
+func GetSecretKey() []byte {
+	return []byte(os.Getenv("SECRET_KEY"))
+}
