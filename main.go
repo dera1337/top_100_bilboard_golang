@@ -22,6 +22,8 @@ func main() {
 	database.ConnectionSupabase()
 	defer database.CloseConnection()
 
+	api.Run()
+	return
 	// created new goroutine everytime cron executes
 
 	s := gocron.NewScheduler(time.UTC)

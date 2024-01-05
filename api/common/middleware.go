@@ -1,4 +1,4 @@
-package api
+package common
 
 import (
 	"fmt"
@@ -67,27 +67,27 @@ func AccessTokenMiddleware(c *gin.Context) {
 		return []byte(environment.GetSecretKey()), nil
 	})
 	if err != nil {
-		writeResponse(c, nil, err.Error(), http.StatusBadRequest)
+		WriteResponse(c, nil, err.Error(), http.StatusBadRequest)
 		c.Abort()
 		return
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
-		writeResponse(c, nil, err.Error(), http.StatusBadRequest)
+		WriteResponse(c, nil, err.Error(), http.StatusBadRequest)
 		c.Abort()
 		return
 	}
 
 	tokenType, err := strconv.Atoi(fmt.Sprintf("%v", claims["token_type"]))
 	if err != nil {
-		writeResponse(c, nil, err.Error(), http.StatusBadRequest)
+		WriteResponse(c, nil, err.Error(), http.StatusBadRequest)
 		c.Abort()
 		return
 	}
 
 	if TokenType(tokenType) != Access {
-		writeResponse(c, nil, err.Error(), http.StatusBadRequest)
+		WriteResponse(c, nil, err.Error(), http.StatusBadRequest)
 		c.Abort()
 		return
 	}

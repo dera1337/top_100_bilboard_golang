@@ -8,3 +8,9 @@ CREATE TABLE IF NOT EXISTS public.song_information
     current_rank_number int NOT NULL,
     previous_rank_number int NULL 
 );
+
+CREATE TABLE IF NOT EXISTS public.user
+(
+    fcm_token character varying NOT NULL PRIMARY KEY,
+    is_premium BOOLEAN NOT NULL
+);

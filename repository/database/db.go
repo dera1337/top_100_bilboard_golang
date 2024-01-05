@@ -51,4 +51,5 @@ func CloseConnection() {
 
 func initWrappers() {
 	SongInfoWrapper = songInfoWrapper{dbConn: &conn}
+	UserWrapper = userWrapper{dbConn: &conn}
 }
