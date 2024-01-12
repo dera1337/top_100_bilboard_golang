@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"top_100_billboard_golang/api/common"
 	"top_100_billboard_golang/repository/database"
 
@@ -25,11 +24,19 @@ func getSongs(c *gin.Context) {
 		return
 	}
 
-	reversedAsString := c.DefaultQuery("reversed", "true")
-	reversed := false
-	if strings.ToLower(reversedAsString) == "true" {
-		reversed = true
+	claims, err := common.ParseJWT(c)
+	if err != nil {
+		common.WriteResponse(c, nil, err.Error(), http.StatusUnauthorized)
+		return
 	}
+
+	isPremium, ok := claims["is_premium"].(bool)
+	if !ok {
+		common.WriteResponse(c, nil, "Invalid claim found in token", http.StatusUnauthorized)
+		return
+	}
+
+	reversed := !isPremium
 
 	songsInfo, err := database.SongInfoWrapper.GetSongInfoList(reversed, page)
 	if err != nil {

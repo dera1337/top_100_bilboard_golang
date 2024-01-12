@@ -19,11 +19,12 @@ const (
 	Refresh
 )
 
-func GenerateRefresh() (string, error) {
+func GenerateRefresh(isPremium bool) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["exp"] = time.Now().Add(10 * 365 * 24 * time.Hour).Unix()
 	claims["token_type"] = Refresh
+	claims["is_premium"] = isPremium
 
 	signedToken, err := token.SignedString(environment.GetSecretKey())
 	if err != nil {
@@ -33,11 +34,12 @@ func GenerateRefresh() (string, error) {
 	return signedToken, nil
 }
 
-func GenerateAccess() (string, error) {
+func GenerateAccess(isPremium bool) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["exp"] = time.Now().Add(1 * time.Hour).Unix()
 	claims["token_type"] = Access
+	claims["is_premium"] = isPremium
 
 	signedToken, err := token.SignedString(environment.GetSecretKey())
 	if err != nil {
@@ -74,20 +76,20 @@ func AccessTokenMiddleware(c *gin.Context) {
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
-		WriteResponse(c, nil, err.Error(), http.StatusBadRequest)
+		WriteResponse(c, nil, "Token is invalid", http.StatusUnauthorized)
 		c.Abort()
 		return
 	}
 
 	tokenType, err := strconv.Atoi(fmt.Sprintf("%v", claims["token_type"]))
 	if err != nil {
-		WriteResponse(c, nil, err.Error(), http.StatusBadRequest)
+		WriteResponse(c, nil, err.Error(), http.StatusUnauthorized)
 		c.Abort()
 		return
 	}
 
 	if TokenType(tokenType) != Access {
-		WriteResponse(c, nil, err.Error(), http.StatusBadRequest)
+		WriteResponse(c, nil, "Mismatch token type", http.StatusUnauthorized)
 		c.Abort()
 		return
 	}

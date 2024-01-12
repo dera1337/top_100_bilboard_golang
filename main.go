@@ -13,18 +13,16 @@ import (
 )
 
 func main() {
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
 	restapi.PopulateApiKey()
+
 	database.ConnectionSupabase()
 	defer database.CloseConnection()
-
-	api.Run()
-	return
-	// created new goroutine everytime cron executes
 
 	s := gocron.NewScheduler(time.UTC)
 	_, err = s.Cron("0 */1 * * *").Do(webscraper.ScrapeBillboard)

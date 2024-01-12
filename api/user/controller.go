@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"top_100_billboard_golang/api/common"
 	"top_100_billboard_golang/repository/database"
 
@@ -15,6 +16,7 @@ func SetupRouter(r *gin.Engine) {
 
 	usersEndpoint := r.Group("/users")
 	usersEndpoint.POST("/signup", signUp)
+	usersEndpoint.POST("/refresh", refreshToken)
 }
 
 func signUp(c *gin.Context) {
@@ -38,17 +40,16 @@ func signUp(c *gin.Context) {
 	// insert db
 	err = database.UserWrapper.InsertUser(&req)
 	if err != nil {
-		fmt.Println(err.Error())
 		common.WriteResponse(c, nil, "failed to insert user to database", http.StatusBadRequest)
 		return
 	}
 
-	accessToken, err := common.GenerateAccess()
+	accessToken, err := common.GenerateAccess(req.IsPremium)
 	if err != nil {
 		common.WriteResponse(c, nil, "failed to generate token", http.StatusInternalServerError)
 		return
 	}
-	refreshToken, err := common.GenerateRefresh()
+	refreshToken, err := common.GenerateRefresh(req.IsPremium)
 	if err != nil {
 		common.WriteResponse(c, nil, "failed to generate token", http.StatusInternalServerError)
 		return
@@ -59,4 +60,55 @@ func signUp(c *gin.Context) {
 		RefreshToken: refreshToken,
 	}
 	common.WriteResponse(c, &resp, "success sign up", http.StatusOK)
+}
+
+func refreshToken(c *gin.Context) {
+	jsonBytes, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		common.WriteResponse(c, nil, "failed reading request body", http.StatusBadRequest)
+		return
+	}
+	defer c.Request.Body.Close()
+
+	var req database.RefreshTokenRequest
+	err = json.Unmarshal(jsonBytes, &req)
+	if err != nil {
+		common.WriteResponse(c, nil, "failed reading request body", http.StatusBadRequest)
+		return
+	}
+
+	claims, err := common.ParseJWT(c)
+	if err != nil {
+		common.WriteResponse(c, nil, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	tokenType, err := strconv.Atoi(fmt.Sprintf("%v", claims["token_type"]))
+	if err != nil {
+		common.WriteResponse(c, nil, err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if common.TokenType(tokenType) != common.Refresh {
+		common.WriteResponse(c, nil, "Wrong token type", http.StatusUnauthorized)
+		return
+	}
+
+	isPremium, ok := claims["is_premium"].(bool)
+	if !ok {
+		common.WriteResponse(c, nil, "Invalid claim found in token", http.StatusUnauthorized)
+		return
+	}
+
+	accessToken, err := common.GenerateAccess(isPremium)
+	if err != nil {
+		common.WriteResponse(c, nil, "Failed to generate access token", http.StatusBadRequest)
+		return
+	}
+
+	resp := database.RefreshTokenResponse{
+		AccessToken: accessToken,
+	}
+
+	common.WriteResponse(c, &resp, "Access Token is Generated", http.StatusOK)
+
 }
