@@ -130,6 +130,7 @@ func (siw *songInfoWrapper) GetCacheFromDB() []string {
 }
 
 func (siw *songInfoWrapper) InsertRows(songInfoList []SongInformation) error {
+	// fmt.Println("inserting rows func")
 	songInfoList, err := siw.updatePreviousRank(songInfoList)
 	if err != nil {
 		return err
@@ -170,15 +171,18 @@ func (siw *songInfoWrapper) updatePreviousRank(songInfoList []SongInformation) (
 	if rowCount <= 0 {
 		return songInfoList, nil
 	}
+	// fmt.Println("finish query table count")
 
 	rows, err := siw.Pool.Query(siw.Ctx, "select * FROM song_information ORDER BY current_rank_number asc")
 	if err != nil {
 		log.Println(err)
 		return nil, err
 	}
+	// fmt.Println("finish query")
 
 	dbSongInfoList := []SongInformation{}
 
+	// fmt.Println("start populating dbsonginfolist")
 	for rows.Next() {
 		var songInfo SongInformation
 		err := rows.Scan(
@@ -196,12 +200,14 @@ func (siw *songInfoWrapper) updatePreviousRank(songInfoList []SongInformation) (
 		}
 		dbSongInfoList = append(dbSongInfoList, songInfo)
 	}
+	// fmt.Println("finished populating dbsonginfolist")
 
 loop:
 	for i, v := range songInfoList {
 		for _, vv := range dbSongInfoList {
 			if v.Title == vv.Title {
-				*songInfoList[i].PreviousRank = vv.CurrentRank
+				songInfoList[i].PreviousRank = &vv.CurrentRank
+				// fmt.Println(*songInfoList[i].PreviousRank)
 				continue loop
 			}
 		}
