@@ -1,18 +1,21 @@
 package webscraper
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"top_100_billboard_golang/notification"
 	"top_100_billboard_golang/repository/database"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 var (
-	errCount         int = 1
-	CachedSongTitles []string
+	errCount                 int = 1
+	CachedSongTitles         []database.SongInformation
+	CachedSongTitlesReversed []database.SongInformation
 )
 
 func ScrapeBillboard() {
@@ -54,10 +57,10 @@ func ScrapeBillboard() {
 
 	songInfoList := []database.SongInformation{}
 	doc.Find(os.Getenv("SELECTOR_1")).Each(func(i int, s *goquery.Selection) {
-		imageUrl, _ := s.Attr("style")
-		index := strings.Index(imageUrl, "https")
-		lastIndex := strings.LastIndex(imageUrl, "'")
-		imageUrl = imageUrl[index:lastIndex]
+		imageUrl, ok := s.Attr("data-lazy-src")
+		if !ok {
+			log.Fatal(fmt.Errorf("image scraper selector broken"))
+		}
 		songInfo := database.SongInformation{
 			ImageURL: imageUrl,
 		}
@@ -68,26 +71,17 @@ func ScrapeBillboard() {
 		title := strings.TrimSpace(s.Find("h3").Text())
 		author := strings.TrimSpace(s.Find("span.c-label").Text())
 
-		songInfo := songInfoList[i]
-		songInfo.Title = title
-		songInfo.Artist = author
-		songInfo.CurrentRank = i + 1
-
-		songInfoList[i] = songInfo
-
+		songInfoList[i].Title = title
+		songInfoList[i].Artist = author
+		songInfoList[i].CurrentRank = i + 1
 	})
-
-	// populate variable CachedSongTitles dari db
-	if len(CachedSongTitles) == 0 {
-		CachedSongTitles = database.SongInfoWrapper.GetCacheFromDB()
-	}
 
 	// apakah di db ada isi / no, kalo ngga
 	if len(CachedSongTitles) == 0 {
 		// print "no data inside db"
 		// fmt.Println("no data inside db")
-		for _, v := range songInfoList {
-			err := database.SongInfoWrapper.GetVideoList(&v)
+		for i := 0; i < len(songInfoList); i++ {
+			err := database.SongInfoWrapper.GetVideoList(&songInfoList[i])
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -102,12 +96,12 @@ func ScrapeBillboard() {
 		// print "cache exist in db"
 		// fmt.Println("cache exist in db")
 		for i := 0; i < len(CachedSongTitles); i++ {
-			if songInfoList[i].Title != CachedSongTitles[i] {
+			if songInfoList[i].Title != CachedSongTitles[i].Title {
 
 				// print "data difference detected"
 				// fmt.Println("data difference detected")
-				for _, v := range songInfoList {
-					err := database.SongInfoWrapper.GetVideoList(&v)
+				for j := 0; j < len(songInfoList); j++ {
+					err := database.SongInfoWrapper.GetVideoList(&songInfoList[j])
 					if err != nil {
 						log.Fatal(err)
 					}
@@ -117,6 +111,14 @@ func ScrapeBillboard() {
 				if err != nil {
 					log.Fatal(err)
 				}
+
+				err = notification.SendNotificationMessageToPaidUsers(
+					songInfoList[0].Artist,
+				)
+				if err != nil {
+					log.Fatal(err)
+				}
+
 				// fmt.Println("after inserting rows")
 				cacheSongs(songInfoList)
 				return
@@ -125,14 +127,21 @@ func ScrapeBillboard() {
 	}
 }
 
-// for cache 25 song so we don't have to querry db
+// populate variable CachedSongTitles dari db
+func PopulateCache() {
+	cacheSongs(database.SongInfoWrapper.GetCacheFromDB())
+}
+
+// for cache 100 songs so we don't have to query db
 func cacheSongs(songs []database.SongInformation) {
-	result := []string{}
+	length := len(songs)
 
-	for _, v := range songs[:25] {
+	CachedSongTitles = songs
+	CachedSongTitlesReversed = make([]database.SongInformation, length)
 
-		result = append(result, v.Title)
-
+	j := 0
+	for i := length - 1; i >= 0; i-- {
+		CachedSongTitlesReversed[j] = songs[i]
+		j++
 	}
-	CachedSongTitles = result
 }

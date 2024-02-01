@@ -1,11 +1,11 @@
 package song
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"top_100_billboard_golang/api/common"
 	"top_100_billboard_golang/repository/database"
+	"top_100_billboard_golang/repository/webscraper"
 
 	"github.com/gin-gonic/gin"
 )
@@ -36,13 +36,28 @@ func getSongs(c *gin.Context) {
 		return
 	}
 
-	reversed := !isPremium
+	// reversed := !isPremium
 
-	songsInfo, err := database.SongInfoWrapper.GetSongInfoList(reversed, page)
-	if err != nil {
-		common.WriteResponse(c, nil, fmt.Sprintf("failed query db, err: %s", err.Error()), http.StatusBadRequest)
-		return
-	}
+	songsInfo := paginateSongInfoList(page, isPremium)
+	// songsInfo, err := database.SongInfoWrapper.GetSongInfoList(reversed, page)
+	// if err != nil {
+	// 	common.WriteResponse(c, nil, fmt.Sprintf("failed query db, err: %s", err.Error()), http.StatusBadRequest)
+	// 	return
+	// }
 
 	common.WriteResponse(c, songsInfo, "Success", http.StatusOK)
+}
+
+func paginateSongInfoList(page int, isPremium bool) []database.SongInformation {
+	if page > 4 || page < 1 {
+		return []database.SongInformation{}
+	}
+
+	startIdx := (page - 1) * 25
+	endIdx := page * 25
+	if isPremium {
+		return webscraper.CachedSongTitles[startIdx:endIdx]
+	} else {
+		return webscraper.CachedSongTitlesReversed[startIdx:endIdx]
+	}
 }

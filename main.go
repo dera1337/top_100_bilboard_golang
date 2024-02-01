@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 	"top_100_billboard_golang/api"
+	"top_100_billboard_golang/notification"
 	"top_100_billboard_golang/repository/database"
 	restapi "top_100_billboard_golang/repository/rest_api"
 	"top_100_billboard_golang/repository/webscraper"
@@ -24,12 +25,15 @@ func main() {
 	database.ConnectionSupabase()
 	defer database.CloseConnection()
 
+	webscraper.PopulateCache()
 	s := gocron.NewScheduler(time.UTC)
 	_, err = s.Cron("0 */1 * * *").Do(webscraper.ScrapeBillboard)
 	if err != nil {
 		log.Fatal(err)
 	}
 	s.StartAsync()
+
+	go notification.StartOAuthTokenGenerator()
 
 	api.Run()
 }

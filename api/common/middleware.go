@@ -69,7 +69,7 @@ func AccessTokenMiddleware(c *gin.Context) {
 		return []byte(environment.GetSecretKey()), nil
 	})
 	if err != nil {
-		WriteResponse(c, nil, err.Error(), http.StatusBadRequest)
+		WriteResponse(c, nil, err.Error(), http.StatusUnauthorized)
 		c.Abort()
 		return
 	}

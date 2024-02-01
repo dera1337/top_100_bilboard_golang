@@ -92,7 +92,7 @@ func (siw *songInfoWrapper) GetVideoList(si *SongInformation) error {
 		return err
 	}
 
-	url, err := videoDetail.GetYoutubeUrl()
+	url, err := videoDetail.GetYoutubeUrl(si.Title, si.Artist)
 	if err != nil {
 		return err
 	}
@@ -101,30 +101,41 @@ func (siw *songInfoWrapper) GetVideoList(si *SongInformation) error {
 	return nil
 }
 
-func (siw *songInfoWrapper) GetCacheFromDB() []string {
+func (siw *songInfoWrapper) GetCacheFromDB() []SongInformation {
 	rowCount := siw.getTableCount()
 
 	if rowCount <= 0 {
 		return nil
 	}
 
-	rows, err := siw.Pool.Query(siw.Ctx, "select title FROM song_information ORDER BY current_rank_number asc  LIMIT 25")
+	rows, err := siw.Pool.Query(
+		siw.Ctx,
+		`SELECT * FROM song_information ORDER BY current_rank_number ASC`,
+	)
 
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
 
-	result := []string{}
+	result := []SongInformation{}
 
 	for rows.Next() {
-		var title string
-		err := rows.Scan(&title)
+		var songInfo SongInformation
+		err := rows.Scan(
+			&songInfo.Id,
+			&songInfo.Title,
+			&songInfo.Artist,
+			&songInfo.Link,
+			&songInfo.ImageURL,
+			&songInfo.CurrentRank,
+			&songInfo.PreviousRank,
+		)
 		if err != nil {
 			log.Println(err)
 			return nil
 		}
-		result = append(result, title)
+		result = append(result, songInfo)
 	}
 	return result
 }
@@ -141,8 +152,18 @@ func (siw *songInfoWrapper) InsertRows(songInfoList []SongInformation) error {
 	siw.Lock()
 	defer siw.Unlock()
 
-	siw.deleteRows()
-	copyCount, err := siw.Pool.CopyFrom(
+	tx, err := siw.Pool.Begin(siw.Ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(siw.Ctx)
+
+	err = siw.deleteRows(tx)
+	if err != nil {
+		return err
+	}
+
+	copyCount, err := tx.CopyFrom(
 		siw.Ctx,
 		pgx.Identifier{"song_information"},
 		[]string{"title", "author", "youtube_url", "image_url", "current_rank_number", "previous_rank_number"},
@@ -158,11 +179,22 @@ func (siw *songInfoWrapper) InsertRows(songInfoList []SongInformation) error {
 	return nil
 }
 
-func (siw *songInfoWrapper) deleteRows() error {
-	_, err := siw.Pool.Exec(siw.Ctx, "DELETE FROM song_information")
+func (siw *songInfoWrapper) deleteRows(tx pgx.Tx) error {
+	sql := "DELETE FROM song_information"
+	if tx == nil {
+		_, err := siw.Pool.Exec(siw.Ctx, sql)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	_, err := tx.Exec(siw.Ctx, sql)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

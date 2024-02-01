@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"os"
+	"top_100_billboard_golang/api/ads"
 	"top_100_billboard_golang/api/song"
 	"top_100_billboard_golang/api/user"
 
@@ -23,4 +24,5 @@ func Run() {
 func setupRouter(r *gin.Engine) {
 	user.SetupRouter(r)
 	song.SetupRouter(r)
+	ads.SetupRouter(r)
 }
